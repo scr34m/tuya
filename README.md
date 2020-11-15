@@ -4,7 +4,7 @@ Golang API for tuya devices (or the like)
 Experimental code subject to major changes
 
 ## Limits
-Support limited to protocol version 3.1
+Support limited to protocol version 3.1 and 3.3
 
 Tested only with Neo power plugs
 

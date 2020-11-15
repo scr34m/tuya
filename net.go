@@ -7,6 +7,7 @@
 package tuya
 
 import (
+   "hash/crc32"
    "io"
    "log"
    "net"
@@ -174,7 +175,8 @@ func tcpSend(cnx net.Conn, cmd int, data []byte) error {
    b = append(b, ui2b(uint(cmd), 8)...)
    b = append(b, ui2b(uint(len(data)+8), 4)...)
    b = append(b, data...)
-   b = append(b, ui2b(uint(0xaa55), 8)...)
+   b = append(b, ui2b(uint(crc32.ChecksumIEEE(b)), 4)...)
+   b = append(b, ui2b(uint(0xaa55), 4)...)
    if _, err := cnx.Write(b); err != nil {
       log.Println(err)
       return err

@@ -5,12 +5,17 @@
 package tuya
 
 import (
+   "crypto/md5"
    "log"
    "net"
 )
 
-func udpListener(dm *DeviceManager) {
-   cnx, err := net.ListenPacket("udp", ":6666")
+func udpListener(dm *DeviceManager, encrypted bool) {
+   port := ":6666"
+   if encrypted {
+      port = ":6667"
+   }
+   cnx, err := net.ListenPacket("udp", port)
    if err != nil {
       log.Fatal("UDP Listener failed:", err)
    }
@@ -27,8 +32,17 @@ func udpListener(dm *DeviceManager) {
                is := 16
                for ; buffer[is] == byte(0) && is < (int(sz)+16); is++ {
                }
-               //log.Print(string(buffer[is:16+sz]))
-               dm.applianceUpdate(buffer[is : 16+sz])
+               if encrypted {
+                  // https://github.com/codetheweb/tuyapi/blob/5a08481689c5062e17ff9a280d0e51815e2cafb7/lib/config.js
+                  key := md5.Sum([]byte("yGAdlopoPVldABfn"))
+                  buffer, err = aesDecrypt(buffer[is:16+sz], key[:], false)
+                  if err != nil {
+                     log.Print("UPD packet decryption failed: ", err)
+                  }
+               } else {
+                  buffer = buffer[is : 16+sz]
+               }
+               dm.applianceUpdate(buffer)
             }
          }
       }

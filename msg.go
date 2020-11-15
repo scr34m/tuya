@@ -43,16 +43,33 @@ func (d *Appliance) SendEncryptedCommand(cmd int, jdata interface{}) error {
       d.mutex.RUnlock()
       return fmt.Errorf("Json Marshal (%v)", er1)
    }
-   cipherText, er2 := aesEncrypt(data, d.key)
-   if er2 != nil {
-      d.mutex.RUnlock()
-      return fmt.Errorf("Encrypt error(%v)", er2)
+   var b []byte
+   switch d.Version {
+      case "3.1":
+         cipherText, er2 := aesEncrypt(data, d.key, true)
+         if er2 != nil {
+            d.mutex.RUnlock()
+            return fmt.Errorf("Encrypt error(%v)", er2)
+         }
+         sig := md5Sign(cipherText, d.key, d.Version)
+         b = make([]byte, 0, len(sig)+len(d.Version)+len(cipherText))
+         b = append(b, []byte(d.Version)...)
+         b = append(b, sig...)
+         b = append(b, cipherText...)
+      case "3.3":
+         cipherText, er2 := aesEncrypt(data, d.key, false)
+         if er2 != nil {
+            d.mutex.RUnlock()
+            return fmt.Errorf("Encrypt error(%v)", er2)
+         }
+         padding := "\000\000\000\000\000\000\000\000\000\000\000\000"
+         b = make([]byte, 0, len(padding)+len(d.Version)+len(cipherText))
+         b = append(b, []byte(d.Version)...)
+         b = append(b, padding...)
+         b = append(b, cipherText...)
+      default:
+         return errors.New("Unknown version")
    }
-   sig := md5Sign(cipherText, d.key, d.Version)
-   b := make([]byte, 0, len(sig)+len(d.Version)+len(cipherText))
-   b = append(b, []byte(d.Version)...)
-   b = append(b, sig...)
-   b = append(b, cipherText...)
    d.mutex.RUnlock()
 
    select {
@@ -91,7 +108,16 @@ func (d *Appliance) processResponse(code int, b []byte) {
          return
       }
       var err error
-      data, err = aesDecrypt(b[len(d.Version)+16:], d.key) // ignore signature
+      switch d.Version {
+      case "3.1":
+         // ignore 16-byte signature
+         data, err = aesDecrypt(b[len(d.Version)+16:], d.key, true)
+      case "3.3":
+         // https://github.com/codetheweb/tuyapi/blob/5a08481689c5062e17ff9a280d0e51815e2cafb7/lib/cipher.js#L54
+         data, err = aesDecrypt(b[15:], d.key, false)
+      default:
+         log.Fatal("Unknown version")
+      }
       if err != nil {
          log.Println("Decrypt error")
          return

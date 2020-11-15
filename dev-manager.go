@@ -30,7 +30,8 @@ type configurationData struct {
    GwId string
    Type string
    Key  string
-   Ip   string //optionnel
+   Ip   string //optional
+	Version string //optional, default to 3.1, may be updated by UDP listener
 }
 
 // the appliance proxies the hardware device
@@ -71,6 +72,7 @@ func (d *Appliance) update(rd *pubAppliance) {
    d.mutex.Lock()
    defer d.mutex.Unlock()
    d.pubAppliance = *rd
+   d.Version = rd.Version
    d.cnxSignal.Broadcast() // Unlock thread waiting for the IP
    d.lastUpdate = time.Now()
 }
@@ -106,6 +108,9 @@ func (dm *DeviceManager) configure(jdata string) {
       if len(c.Ip) > 0 {
          d.Ip = c.Ip
       }
+      if len(c.Version) > 0 {
+         d.Version = c.Version
+      }
       b, ok := makeDevice(c.Type)
       if ok {
          b.configure(d, &c)
@@ -123,7 +128,8 @@ func newDeviceManager() *DeviceManager {
    dm := new(DeviceManager)
    dm.collection = make(map[string]*Appliance)
    dm.namedColl = make(map[string]Device)
-   go udpListener(dm)
+   go udpListener(dm, true)
+   go udpListener(dm, false)
    return dm
 }
 func NewDeviceManager(jdata string) *DeviceManager {

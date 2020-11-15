@@ -22,7 +22,7 @@ func md5Sign(b []byte, key []byte, version string) []byte {
    hash := h.Sum(nil)
    return []byte(hex.EncodeToString(hash[4:12]))
 }
-func aesEncrypt(data []byte, key []byte) ([]byte, error) {
+func aesEncrypt(data []byte, key []byte, b64 bool) ([]byte, error) {
    block, err := aes.NewCipher([]byte(key))
    if err != nil {
       return nil, err
@@ -41,17 +41,24 @@ func aesEncrypt(data []byte, key []byte) ([]byte, error) {
    for i := 0; i < len(data); i = i + bs {
       block.Encrypt(ciphertext[i:i+bs], data[i:i+bs])
    }
+   if !b64 {
+      return ciphertext, nil
+   }
    return []byte(base64.StdEncoding.EncodeToString(ciphertext)), nil
 }
 
-func aesDecrypt(data []byte, key []byte) ([]byte, error) {
-   n := base64.StdEncoding.DecodedLen(len(data))
-   ciphertext := make([]byte, n)
-   nc, er1 := base64.StdEncoding.Decode(ciphertext, data)
-   if er1 != nil {
-      return []byte{}, er1
+func aesDecrypt(data []byte, key []byte, b64 bool) ([]byte, error) {
+   ciphertext := data
+   if b64 {
+      n := base64.StdEncoding.DecodedLen(len(data))
+      ciphertext = make([]byte, n)
+      nc, er1 := base64.StdEncoding.Decode(ciphertext, data)
+      if er1 != nil {
+         return []byte{}, er1
+      }
+      ciphertext = ciphertext[:nc]
    }
-   ciphertext = ciphertext[:nc]
+   nc := len(ciphertext)
    block, er2 := aes.NewCipher([]byte(key))
    if er2 != nil {
       return []byte{}, er2
