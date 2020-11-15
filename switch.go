@@ -9,13 +9,16 @@ import (
    "encoding/json"
    "errors"
    "log"
+   "strconv"
    "sync/atomic"
    "time"
 )
 
 type Switch interface {
    Set(bool) error
+   SetN(bool, int) error
    SetW(bool, time.Duration) (bool, error)
+   SetNW(bool, int, time.Duration) (bool, error)
    Status() (bool, error)
    StatusW(time.Duration) (bool, error)
 }
@@ -32,16 +35,22 @@ type ISwitch struct {
 }
 
 func (s *ISwitch) Set(on bool) error {
+   return s.SetN(on, 1)
+}
+func (s *ISwitch) SetN(on bool, dps int) error {
    m := s.app.makeBaseMsg()
-   m["dps"] = map[string]bool{"1": on}
+   m["dps"] = map[string]bool{strconv.Itoa(dps): on}
    return s.app.SendEncryptedCommand(CodeMsgSet, m)
 }
 func (s *ISwitch) SetW(on bool, delay time.Duration) (bool, error) {
+   return s.SetNW(on, 1, delay)
+}
+func (s *ISwitch) SetNW(on bool, dps int, delay time.Duration) (bool, error) {
    c := MakeSyncChannel()
    k := s.Subscribe(c)
    defer s.Unsubscribe(k)
    deadLine := time.Now().Add(delay)
-   err := s.Set(on)
+   err := s.SetN(on, dps)
    if err != nil {
       return s._status(), err
    }
@@ -116,8 +125,7 @@ func (s *ISwitch) processResponse(code int, data []byte) {
    if ok {
       v1, ok2 := v.(map[string]interface{})
       if ok2 {
-         v2, ok3 := v1["1"]
-         if ok3 {
+         for _, v2 := range v1 {
             vs, _ := v2.(bool)
             ivs := int32(0)
             if vs {
