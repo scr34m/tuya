@@ -25,7 +25,7 @@ type pubAppliance struct {
 }
 
 // configuration data
-type configurationData struct {
+type ConfigurationData struct {
 	Name    string
 	GwId    string
 	Type    string
@@ -94,7 +94,7 @@ func (dm *DeviceManager) getAppliance(id string) *Appliance {
 
 // -------------------------------------------
 func (dm *DeviceManager) configure(jdata string) {
-	conf := make([]configurationData, 0)
+	conf := make([]ConfigurationData, 0)
 	err := json.Unmarshal([]byte(jdata), &conf)
 	if err != nil {
 		log.Fatal("Conf error:", err)
@@ -114,7 +114,7 @@ func (dm *DeviceManager) configure(jdata string) {
 		}
 		b, ok := makeDevice(c.Type)
 		if ok {
-			b.configure(d, &c)
+			b.Configure(d, &c)
 			d.device = b
 			dm.namedColl[b.Name()] = b
 			go d.tcpConnManager(d.tcpChan) // to be run after configuration
@@ -138,8 +138,32 @@ func NewDeviceManager(jdata string) *DeviceManager {
 	dm.configure(jdata)
 	return dm
 }
+func NewDeviceManagerRaw() *DeviceManager {
+	dm := newDeviceManager()
+	return dm
+}
 
 // -------------------------------------------
+func (dm *DeviceManager) DefineDevice(Name, GwId, Key, Ip, Version string, device Device) {
+	if len(GwId) == 0 {
+		log.Fatal("Conf Id missing")
+	}
+	d := dm.getAppliance(GwId)
+	d.GwId = GwId
+	d.key = []byte(Key)
+	if len(Ip) > 0 {
+		d.Ip = Ip
+	}
+	if len(Version) > 0 {
+		d.Version = Version
+	}
+
+	device.Configure(d, &ConfigurationData{Name: Name})
+	d.device = device
+	dm.namedColl[device.Name()] = device
+	go d.tcpConnManager(d.tcpChan) // to be run after configuration
+}
+
 func (dm *DeviceManager) applianceUpdate(data []byte) {
 	var rd pubAppliance
 	je := json.Unmarshal(data, &rd)

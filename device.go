@@ -20,9 +20,9 @@ type Device interface {
 	Name() string
 	Subscribe(SyncChannel) int64
 	Unsubscribe(int64)
-	// private
-	configure(*Appliance, *configurationData)
-	processResponse(int, []byte)
+	Configure(*Appliance, *ConfigurationData)
+	ProcessResponse(int, []byte)
+	Init(string, *Appliance, *ConfigurationData)
 }
 
 // Code for tuya messages
@@ -34,28 +34,28 @@ const (
 )
 
 // to be embedded in Device
-type baseDevice struct {
+type BaseDevice struct {
 	sync.Mutex
 	typ  string
 	name string
-	app  *Appliance
+	App  *Appliance
 	// Publish subscribe
 	subscribers map[int64]SyncChannel
 }
 
-// baseDevice initialization to be invoked during configation
-func (b *baseDevice) _configure(typ string, a *Appliance, c *configurationData) {
+// BaseDevice initialization to be invoked during configation
+func (b *BaseDevice) Init(typ string, a *Appliance, c *ConfigurationData) {
 	b.typ = typ
-	b.app = a
+	b.App = a
 	b.name = c.Name
 	b.subscribers = make(map[int64]SyncChannel)
 }
 
-// Implementation of Device interface provided by baseDevice
-func (b *baseDevice) Type() string {
+// Implementation of Device interface provided by BaseDevice
+func (b *BaseDevice) Type() string {
 	return b.typ
 }
-func (b *baseDevice) Name() string {
+func (b *BaseDevice) Name() string {
 	return b.name
 }
 
@@ -66,19 +66,19 @@ func MakeSyncChannel() SyncChannel {
 	return SyncChannel(make(chan SyncMsg, 1))
 }
 
-func (b *baseDevice) Subscribe(c SyncChannel) int64 {
+func (b *BaseDevice) Subscribe(c SyncChannel) int64 {
 	b.Lock()
 	defer b.Unlock()
 	key := atomic.AddInt64(&keyIndexCpt, 1) // ignore overflow
 	b.subscribers[key] = c
 	return key
 }
-func (b *baseDevice) Unsubscribe(key int64) {
+func (b *BaseDevice) Unsubscribe(key int64) {
 	b.Lock()
 	defer b.Unlock()
 	delete(b.subscribers, key)
 }
-func (b *baseDevice) Notify(code int, d Device) {
+func (b *BaseDevice) Notify(code int, d Device) {
 	b.Lock()
 	defer b.Unlock()
 	syncMsg := SyncMsg{code, d}

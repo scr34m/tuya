@@ -15,7 +15,7 @@ import (
 )
 
 // create base messages
-func (d *Appliance) makeBaseMsg() map[string]interface{} {
+func (d *Appliance) MakeBaseMsg() map[string]interface{} {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
 	m := make(map[string]interface{})
@@ -24,7 +24,7 @@ func (d *Appliance) makeBaseMsg() map[string]interface{} {
 	m["t"] = time.Now().Unix()
 	return m
 }
-func (d *Appliance) makeStatusMsg() map[string]interface{} {
+func (d *Appliance) MakeStatusMsg() map[string]interface{} {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
 	return map[string]interface{}{"gwId": d.GwId, "devId": d.GwId}
@@ -80,13 +80,13 @@ func (d *Appliance) SendEncryptedCommand(cmd int, jdata interface{}) error {
 	return nil
 }
 
-func (d *Appliance) processResponse(code int, b []byte) {
+func (d *Appliance) ProcessResponse(code int, b []byte) {
 	var i int
 	for i = 0; i < len(b) && b[i] == byte(0); i++ {
 	}
 	b = b[i:]
 	if len(b) == 0 { // can be an ack
-		d.device.processResponse(code, b)
+		d.device.ProcessResponse(code, b)
 		return
 	} // empty
 	var data []byte
@@ -123,7 +123,7 @@ func (d *Appliance) processResponse(code int, b []byte) {
 			return
 		}
 	}
-	d.device.processResponse(code, data)
+	d.device.ProcessResponse(code, data)
 }
 
 // Send message unencrypted

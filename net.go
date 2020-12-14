@@ -70,7 +70,7 @@ func (a *Appliance) tcpReceiver(cnx net.Conn, ccmd chan int) {
 			log.Println("Read failed", err)
 			return
 		}
-		a.processResponse(code, response[:sz-8])
+		a.ProcessResponse(code, response[:sz-8])
 	}
 }
 

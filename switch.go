@@ -30,7 +30,7 @@ const (
 )
 
 type ISwitch struct {
-	baseDevice
+	BaseDevice
 	status int32
 }
 
@@ -38,9 +38,9 @@ func (s *ISwitch) Set(on bool) error {
 	return s.SetN(on, 1)
 }
 func (s *ISwitch) SetN(on bool, dps int) error {
-	m := s.app.makeBaseMsg()
+	m := s.App.MakeBaseMsg()
 	m["dps"] = map[string]bool{strconv.Itoa(dps): on}
-	return s.app.SendEncryptedCommand(CodeMsgSet, m)
+	return s.App.SendEncryptedCommand(CodeMsgSet, m)
 }
 func (s *ISwitch) SetW(on bool, delay time.Duration) (bool, error) {
 	return s.SetNW(on, 1, delay)
@@ -86,7 +86,7 @@ func (s *ISwitch) StatusW(delay time.Duration) (bool, error) {
 	defer s.Unsubscribe(k)
 
 	deadLine := time.Now().Add(delay)
-	err := s.app.SendCommand(CodeMsgStatus, s.app.makeStatusMsg())
+	err := s.App.SendCommand(CodeMsgStatus, s.App.MakeStatusMsg())
 	if err != nil {
 		return s._status(), err
 	}
@@ -104,7 +104,7 @@ func (s *ISwitch) StatusW(delay time.Duration) (bool, error) {
 	}
 
 }
-func (s *ISwitch) processResponse(code int, data []byte) {
+func (s *ISwitch) ProcessResponse(code int, data []byte) {
 	switch {
 	case len(data) == 0:
 		return
@@ -139,7 +139,7 @@ func (s *ISwitch) processResponse(code int, data []byte) {
 }
 
 // Device implementation
-func (s *ISwitch) configure(a *Appliance, c *configurationData) {
+func (s *ISwitch) Configure(a *Appliance, c *ConfigurationData) {
 	s.status = SwitchUndetermined
-	s._configure("Switch", a, c)
+	s.Init("Switch", a, c)
 }
