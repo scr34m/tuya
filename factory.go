@@ -8,11 +8,11 @@ package tuya
 import "log"
 
 func makeDevice(typ string) (Device, bool) {
-   switch typ {
-   case "Switch":
-      return new(ISwitch), true
-   default:
-      log.Println("Unknown device:", typ)
-   }
-   return nil, false
+	switch typ {
+	case "Switch":
+		return new(ISwitch), true
+	default:
+		log.Println("Unknown device:", typ)
+	}
+	return nil, false
 }
