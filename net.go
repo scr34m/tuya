@@ -114,7 +114,7 @@ func (a *Appliance) tcpConnManager(c chan query) {
 	rcvFailed := make(chan int)
 
 	cnx, _ = a.getConnection(rcvFailed)
-	q := query{CodeMsgStatus, a.initialStatusMsg()}
+	q := query{CodeMsgStatus, a.StatusMsg()}
 	for {
 		// Status message is sent the first time => send it before retrieving next cmd
 	sendloop:
@@ -152,7 +152,7 @@ func (a *Appliance) tcpConnManager(c chan query) {
 					q = query{CodeMsgPing, []byte{}}
 				} else {
 					// Broken connection => restart with a status message
-					q = query{CodeMsgStatus, a.initialStatusMsg()}
+					q = query{CodeMsgStatus, a.StatusMsg()}
 				}
 				break loop
 			}

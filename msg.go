@@ -24,15 +24,26 @@ func (d *Appliance) MakeBaseMsg() map[string]interface{} {
 	m["t"] = time.Now().Unix()
 	return m
 }
-func (d *Appliance) MakeStatusMsg() map[string]interface{} {
+
+// Status message should be encrypted by the version
+func (d *Appliance) StatusMsg() []byte {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
-	return map[string]interface{}{"gwId": d.GwId, "devId": d.GwId}
-}
-func (d *Appliance) initialStatusMsg() []byte {
+
 	m := map[string]interface{}{"gwId": d.GwId, "devId": d.GwId}
+
 	data, _ := json.Marshal(m)
-	return data
+
+	switch d.Version {
+	case "3.3":
+		b, er2 := aesEncrypt(data, d.key, false)
+		if er2 != nil {
+			return nil
+		}
+		return b
+	default:
+		return data
+	}
 }
 
 // -------------------------------
@@ -94,29 +105,30 @@ func (d *Appliance) ProcessResponse(code int, b []byte) {
 		//  Message in clear text
 		data = b
 	} else {
-		encrypted := false
-		if len(b) > (len(d.Version) + 16) {
-			// Check if message starts with version number
-			encrypted = true
-			for i, vb := range d.Version {
-				encrypted = encrypted && b[i] == byte(vb)
-			}
-		}
-		if !encrypted {
-			// can be an error message
-			log.Println("Resp:", code, string(b))
-			return
-		}
 		var err error
-		switch d.Version {
-		case "3.1":
-			// ignore 16-byte signature
-			data, err = aesDecrypt(b[len(d.Version)+16:], d.key, true)
-		case "3.3":
+		if d.Version == "3.3" {
 			// https://github.com/codetheweb/tuyapi/blob/5a08481689c5062e17ff9a280d0e51815e2cafb7/lib/cipher.js#L54
-			data, err = aesDecrypt(b[15:], d.key, false)
-		default:
-			log.Fatal("Unknown version")
+			if code == CodeMsgStatus {
+				// status reply doesn't have extra headers
+				data, err = aesDecrypt(b, d.key, false)
+			} else {
+				data, err = aesDecrypt(b[15:], d.key, false)
+			}
+		} else {
+			encrypted := false
+			if len(b) > (len(d.Version) + 16) {
+				// Check if message starts with version number
+				encrypted = true
+				for i, vb := range d.Version {
+					encrypted = encrypted && b[i] == byte(vb)
+				}
+			}
+			if !encrypted {
+				// can be an error message
+				log.Println("Resp:", code, string(b))
+				return
+			}
+			data, err = aesDecrypt(b[len(d.Version)+16:], d.key, true) // ignore signature
 		}
 		if err != nil {
 			log.Println("Decrypt error")
